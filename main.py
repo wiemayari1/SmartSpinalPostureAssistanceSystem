@@ -1,4 +1,5 @@
 from fastapi import FastAPI, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware  # ← AJOUTÉ
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Literal
@@ -8,10 +9,18 @@ import os
 import asyncio
 import aiohttp
 
-# Configuration minimale (gratuite, pas besoin d'OpenAI pour commencer)
 app = FastAPI(title="PostureAI", version="1.0")
 
-# Modèles de données
+# ========== CORS AJOUTÉ ICI ==========
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Autorise tout le monde (votre PC, Wokwi, etc.)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Reste du code inchangé...
 class SensorData(BaseModel):
     device_id: str
     pitch: float
@@ -20,14 +29,13 @@ class SensorData(BaseModel):
 
 class AIResponse(BaseModel):
     device_id: str
-    posture_state: int  # 0: Bon, 1: Attention, 2: Mauvais
+    posture_state: int
     confidence: float
     risk_score: float
     recommendation: str
     exercise: str
     language: str
 
-# IA simple (fonctionne sans OpenAI, 100% gratuit)
 def analyze_posture_ai(pitch: float, roll: float, lang: str):
     tilt = np.sqrt(pitch**2 + roll**2)
     
@@ -44,7 +52,6 @@ def analyze_posture_ai(pitch: float, roll: float, lang: str):
         conf = 0.90
         risk = min(55 + (tilt - 30) * 3, 100)
     
-    # Recommandations multilingues (fallback gratuit)
     recs = {
         "FR": ["Posture parfaite", "Attention légère", "Redressez-vous immédiatement"],
         "AR": ["وضعية ممتازة", "تنبيه خفيف", "استقيم فوراً"],
@@ -71,7 +78,6 @@ async def analyze(data: SensorData):
     
     ai_result = analyze_posture_ai(data.pitch, data.roll, data.lang)
     
-    # Envoi n8n si risque élevé (async, ne bloque pas la réponse)
     if ai_result["state"] == 2:
         asyncio.create_task(send_n8n_alert(data, ai_result))
     
@@ -86,7 +92,6 @@ async def analyze(data: SensorData):
     )
 
 async def send_n8n_alert(data: SensorData, result: dict):
-    """Webhook vers n8n (optionnel pour l'instant)"""
     n8n_url = os.getenv("N8N_WEBHOOK_URL", "")
     if not n8n_url:
         return
