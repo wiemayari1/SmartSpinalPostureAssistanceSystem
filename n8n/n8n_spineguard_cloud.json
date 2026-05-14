@@ -1,0 +1,262 @@
+{
+  "name": "SpineGuard - Cloud Complet",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "posture-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-data",
+      "name": "Webhook Donnees ESP32",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "posture-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-alert",
+      "name": "Webhook Alerte ESP32",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-daily",
+      "name": "Cron Rapport 18h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 740]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation et enrichissement des donnees\nconst data = $input.first().json.body || $input.first().json;\n\n// Validation\nif (!data.device_id || !data.state) {\n  throw new Error('Champs obligatoires manquants: device_id, state');\n}\n\n// Calcul du score de posture (0-100)\nconst deviation = parseFloat(data.deviation) || 0;\nlet score = Math.max(0, Math.round(100 - (deviation * 2)));\n\n// Niveau de gravite\nconst state = (data.state || '').toLowerCase();\nlet severity = 'info';\nlet emoji = '✅';\nlet needsAlert = false;\n\nif (state === 'critical') {\n  severity = 'critical';\n  emoji = '🚨';\n  needsAlert = true;\n} else if (state === 'bad') {\n  severity = 'high';\n  emoji = '❌';\n  needsAlert = true;\n} else if (state === 'warning') {\n  severity = 'medium';\n  emoji = '⚠️';\n  needsAlert = false;\n}\n\nreturn [{\n  json: {\n    device_id: data.device_id || 'spineguard-001',\n    posture_state: state,\n    pitch: parseFloat(data.pitch) || 0,\n    roll: parseFloat(data.roll) || 0,\n    deviation: deviation,\n    total_alerts: parseInt(data.total_alerts) || 0,\n    bad_posture_time: parseInt(data.bad_time_s) || 0,\n    session_duration: parseInt(data.session_s) || 0,\n    score: score,\n    severity: severity,\n    emoji: emoji,\n    needs_alert: needsAlert,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "prepare-data",
+      "name": "Valider et Enrichir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "posture_data",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "device_id",       "fieldValue": "={{ $json.device_id }}" },
+            { "fieldId": "posture_state",   "fieldValue": "={{ $json.posture_state }}" },
+            { "fieldId": "pitch",           "fieldValue": "={{ $json.pitch }}" },
+            { "fieldId": "roll",            "fieldValue": "={{ $json.roll }}" },
+            { "fieldId": "deviation",       "fieldValue": "={{ $json.deviation }}" },
+            { "fieldId": "total_alerts",    "fieldValue": "={{ $json.total_alerts }}" },
+            { "fieldId": "bad_posture_time","fieldValue": "={{ $json.bad_posture_time }}" },
+            { "fieldId": "session_duration","fieldValue": "={{ $json.session_duration }}" }
+          ]
+        }
+      },
+      "id": "supabase-insert",
+      "name": "Supabase INSERT",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [720, 300],
+      "credentials": {
+        "supabaseApi": { "name": "Supabase SpineGuard" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({status: 'ok', id: $json.id}) }}"
+      },
+      "id": "response-data",
+      "name": "Reponse 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.needs_alert }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "check-alert",
+      "name": "Alerte necessaire ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 180]
+    },
+    {
+      "parameters": {
+        "fromEmail": "spineguard@gmail.com",
+        "toEmail": "votre.email@gmail.com",
+        "subject": "={{ $json.emoji }} SpineGuard - Alerte posturale {{ $json.severity }}",
+        "emailType": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<head><meta charset='utf-8'></head>\n<body style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f5f5f5;padding:20px'>\n  <div style='background:#1a1a2e;color:white;padding:20px;border-radius:12px 12px 0 0;text-align:center'>\n    <h1 style='color:#00d4aa;margin:0'>SpineGuard</h1>\n    <p style='margin:4px 0;opacity:0.7'>Assistant postural intelligent</p>\n  </div>\n  <div style='background:white;padding:24px;border-radius:0 0 12px 12px'>\n    <h2 style='color:#e74c3c'>{{ $json.emoji }} Alerte posturale</h2>\n    <table style='width:100%;border-collapse:collapse'>\n      <tr style='background:#f8f9fa'>\n        <td style='padding:10px;font-weight:bold'>Etat</td>\n        <td style='padding:10px'>{{ $json.posture_state }}</td>\n      </tr>\n      <tr>\n        <td style='padding:10px;font-weight:bold'>Deviation</td>\n        <td style='padding:10px'>{{ $json.deviation }}°</td>\n      </tr>\n      <tr style='background:#f8f9fa'>\n        <td style='padding:10px;font-weight:bold'>Pitch</td>\n        <td style='padding:10px'>{{ $json.pitch }}°</td>\n      </tr>\n      <tr>\n        <td style='padding:10px;font-weight:bold'>Roll</td>\n        <td style='padding:10px'>{{ $json.roll }}°</td>\n      </tr>\n      <tr style='background:#f8f9fa'>\n        <td style='padding:10px;font-weight:bold'>Score postural</td>\n        <td style='padding:10px'>{{ $json.score }}/100</td>\n      </tr>\n      <tr>\n        <td style='padding:10px;font-weight:bold'>Alertes totales</td>\n        <td style='padding:10px'>{{ $json.total_alerts }}</td>\n      </tr>\n    </table>\n    <div style='background:#fff3cd;border:1px solid #ffc107;padding:16px;border-radius:8px;margin-top:16px'>\n      <strong>Conseils :</strong><br>\n      • Redressez le dos et rapprochez les epaules<br>\n      • Levez-vous et marchez 2 minutes<br>\n      • Faites 4 cycles de respiration profonde\n    </div>\n    <p style='color:#888;font-size:12px;margin-top:16px'>{{ $json.timestamp }}</p>\n  </div>\n</body>\n</html>"
+      },
+      "id": "email-alert",
+      "name": "Email Alerte",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [960, 120],
+      "credentials": {
+        "smtp": { "name": "Gmail SpineGuard" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyse des alertes reçues directement de l'ESP32\nconst data = $input.first().json.body || $input.first().json;\nconst state = (data.state || '').toLowerCase();\n\nlet message = '';\nlet emoji = '';\nlet conseils = [];\n\nswitch(state) {\n  case 'critical':\n    emoji = '🚨';\n    message = 'URGENT : posture critique detectee !';\n    conseils = [\n      'Corrigez immediatement votre position',\n      'Levez-vous et faites quelques pas',\n      'Consultez un professionnel si douleur'\n    ];\n    break;\n  case 'bad':\n    emoji = '❌';\n    message = 'Mauvaise posture maintenue trop longtemps';\n    conseils = [\n      'Redressez le dos contre le dossier',\n      'Repositionnez votre ecran a hauteur des yeux',\n      'Exercice : rotation des epaules 10x'\n    ];\n    break;\n  default:\n    emoji = '⚠️';\n    message = 'Avertissement postural';\n    conseils = ['Ajustez legerement votre position'];\n}\n\nreturn [{\n  json: {\n    ...data,\n    state: state,\n    emoji: emoji,\n    message: message,\n    conseils: conseils,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "process-alert",
+      "name": "Analyser Alerte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 520]
+    },
+    {
+      "parameters": {
+        "fromEmail": "spineguard@gmail.com",
+        "toEmail": "votre.email@gmail.com",
+        "subject": "={{ $json.emoji }} SpineGuard - {{ $json.message }}",
+        "emailType": "html",
+        "message": "<!DOCTYPE html>\n<html><body style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>\n  <div style='background:#1a1a2e;padding:20px;text-align:center'>\n    <h1 style='color:#00d4aa'>SpineGuard {{ $json.emoji }}</h1>\n  </div>\n  <div style='padding:20px'>\n    <h2>{{ $json.message }}</h2>\n    <p><strong>Etat :</strong> {{ $json.state }}</p>\n    <p><strong>Heure :</strong> {{ $json.timestamp }}</p>\n    <h3>Conseils immediats :</h3>\n    <ul>\n      {{ $json.conseils.map(c => '<li>' + c + '</li>').join('') }}\n    </ul>\n  </div>\n</body></html>"
+      },
+      "id": "email-direct-alert",
+      "name": "Email Alerte Directe",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [720, 520],
+      "credentials": {
+        "smtp": { "name": "Gmail SpineGuard" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"alert_received\"}"
+      },
+      "id": "response-alert",
+      "name": "Reponse Alerte OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 520]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "daily_summary",
+        "returnAll": false,
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "day",
+              "condition": "eq",
+              "keyValue": "={{ new Date().toISOString().split('T')[0] }}"
+            }
+          ]
+        }
+      },
+      "id": "supabase-daily",
+      "name": "Supabase Donnees Jour",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [480, 740],
+      "credentials": {
+        "supabaseApi": { "name": "Supabase SpineGuard" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst today = new Date().toISOString().split('T')[0];\n\nif (!rows || rows.length === 0) {\n  return [{ json: {\n    date: today,\n    total_readings: 0,\n    bad_count: 0,\n    good_ratio: '100%',\n    max_deviation: 0,\n    summary: 'Aucune donnee disponible pour aujourd\\'hui.',\n    has_data: false\n  }}];\n}\n\nconst d = rows[0].json;\nconst total = parseInt(d.total_readings) || 0;\nconst bad   = parseInt(d.bad_count) || 0;\nconst good  = total > 0 ? (((total - bad) / total) * 100).toFixed(1) : '100';\n\nlet appreciation = '';\nif (parseFloat(good) >= 85) {\n  appreciation = '🌟 Excellente journee ! Continuez ainsi.';\n} else if (parseFloat(good) >= 65) {\n  appreciation = '👍 Bonne journee, quelques efforts a fournir.';\n} else {\n  appreciation = '⚠️ Journee difficile. Pensez a revoir votre poste de travail.';\n}\n\nreturn [{ json: {\n  date: today,\n  device_id: d.device_id || 'spineguard-001',\n  total_readings: total,\n  bad_count: bad,\n  good_ratio: good + '%',\n  max_deviation: d.max_deviation || 0,\n  avg_pitch: d.avg_pitch || 0,\n  avg_roll: d.avg_roll || 0,\n  appreciation: appreciation,\n  has_data: true\n}}];"
+      },
+      "id": "build-report",
+      "name": "Construire Rapport",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 740]
+    },
+    {
+      "parameters": {
+        "fromEmail": "spineguard@gmail.com",
+        "toEmail": "votre.email@gmail.com",
+        "subject": "📊 SpineGuard - Rapport quotidien {{ $json.date }}",
+        "emailType": "html",
+        "message": "<!DOCTYPE html>\n<html>\n<head><meta charset='utf-8'></head>\n<body style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f5f5f5;padding:20px'>\n  <div style='background:#1a1a2e;padding:24px;border-radius:12px 12px 0 0;text-align:center'>\n    <h1 style='color:#00d4aa;margin:0'>SpineGuard</h1>\n    <p style='color:#8892b0;margin:4px 0'>Rapport quotidien — {{ $json.date }}</p>\n  </div>\n  <div style='background:white;padding:24px;border-radius:0 0 12px 12px'>\n    <div style='text-align:center;padding:20px;background:#e8f5e9;border-radius:8px;margin-bottom:20px'>\n      <div style='font-size:48px;font-weight:bold;color:#00d4aa'>{{ $json.good_ratio }}</div>\n      <div style='color:#555'>de bonne posture aujourd\\'hui</div>\n    </div>\n    <table style='width:100%;border-collapse:collapse;margin-bottom:20px'>\n      <tr style='background:#f8f9fa'>\n        <td style='padding:12px;font-weight:bold;border-bottom:1px solid #eee'>Lectures totales</td>\n        <td style='padding:12px;text-align:right;border-bottom:1px solid #eee'>{{ $json.total_readings }}</td>\n      </tr>\n      <tr>\n        <td style='padding:12px;font-weight:bold;border-bottom:1px solid #eee'>Episodes de mauvaise posture</td>\n        <td style='padding:12px;text-align:right;border-bottom:1px solid #eee;color:#e74c3c'>{{ $json.bad_count }}</td>\n      </tr>\n      <tr style='background:#f8f9fa'>\n        <td style='padding:12px;font-weight:bold;border-bottom:1px solid #eee'>Deviation max</td>\n        <td style='padding:12px;text-align:right;border-bottom:1px solid #eee'>{{ $json.max_deviation }}°</td>\n      </tr>\n      <tr>\n        <td style='padding:12px;font-weight:bold'>Pitch moyen</td>\n        <td style='padding:12px;text-align:right'>{{ $json.avg_pitch }}°</td>\n      </tr>\n    </table>\n    <div style='background:#e3f2fd;border-left:4px solid #00d4aa;padding:16px;border-radius:4px'>\n      {{ $json.appreciation }}\n    </div>\n    <p style='color:#888;font-size:11px;margin-top:20px;text-align:center'>\n      SpineGuard — Wiem Ayari & Aya Sakroufi — 1ING03\n    </p>\n  </div>\n</body>\n</html>"
+      },
+      "id": "email-report",
+      "name": "Email Rapport Quotidien",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [960, 740],
+      "credentials": {
+        "smtp": { "name": "Gmail SpineGuard" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Donnees ESP32": {
+      "main": [[{ "node": "Valider et Enrichir", "type": "main", "index": 0 }]]
+    },
+    "Valider et Enrichir": {
+      "main": [[
+        { "node": "Supabase INSERT",      "type": "main", "index": 0 },
+        { "node": "Alerte necessaire ?",  "type": "main", "index": 0 }
+      ]]
+    },
+    "Supabase INSERT": {
+      "main": [[{ "node": "Reponse 200 OK", "type": "main", "index": 0 }]]
+    },
+    "Alerte necessaire ?": {
+      "main": [
+        [{ "node": "Email Alerte", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Webhook Alerte ESP32": {
+      "main": [[{ "node": "Analyser Alerte", "type": "main", "index": 0 }]]
+    },
+    "Analyser Alerte": {
+      "main": [[
+        { "node": "Email Alerte Directe", "type": "main", "index": 0 },
+        { "node": "Reponse Alerte OK",    "type": "main", "index": 0 }
+      ]]
+    },
+    "Cron Rapport 18h": {
+      "main": [[{ "node": "Supabase Donnees Jour", "type": "main", "index": 0 }]]
+    },
+    "Supabase Donnees Jour": {
+      "main": [[{ "node": "Construire Rapport", "type": "main", "index": 0 }]]
+    },
+    "Construire Rapport": {
+      "main": [[{ "node": "Email Rapport Quotidien", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "SpineGuard" }]
+}

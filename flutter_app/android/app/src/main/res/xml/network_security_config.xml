@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    network_security_config.xml
+    Autorise le trafic HTTP (non chiffré) vers l'ESP32 sur le réseau local.
+    Obligatoire depuis Android 9 (API 28+).
+-->
+<network-security-config>
+    <!-- Autorise tout le trafic HTTP en clair sur les adresses IP locales -->
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Plages d'adresses courantes pour les réseaux locaux -->
+        <domain includeSubdomains="false">192.168.1.1</domain>
+        <domain includeSubdomains="false">192.168.0.1</domain>
+    </domain-config>
+
+    <!-- Règle générale : autorise le cleartext pour tout (réseau local) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
