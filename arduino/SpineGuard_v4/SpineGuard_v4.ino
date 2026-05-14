@@ -1,24 +1,3 @@
-/*
-  =============================================================
-  SpineGuard - Firmware ESP32 v4 (CORS + connectivite Flutter)
-  -------------------------------------------------------------
-  CORRECTIONS v4 :
-    - Ajout des headers CORS sur tous les endpoints HTTP
-      (Access-Control-Allow-Origin: *)
-    - Gestion des requetes OPTIONS (preflight CORS)
-    - Ces 2 corrections sont indispensables pour que
-      l'application Flutter Android puisse communiquer
-      avec l'ESP32 sans etre bloquee par le navigateur
-      ou le systeme Android.
-
-  Corrections precedentes conservees :
-    - Filtre complementaire avec dt reel (v3)
-    - Buzzer non-bloquant (v2)
-
-  Auteurs : Wiem Ayari & Aya Sakroufi - 1ING03
-  =============================================================
-*/
-
 #include <Wire.h>
 #include <WiFi.h>
 #include <WebServer.h>
