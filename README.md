@@ -1,6 +1,6 @@
 <div align="center">
   <h1>SpineGuard — Smart Spinal Posture Assistance System</h1>
-  <p><em>Système intelligent d'assistance posturale en temps réel basé sur ESP32, MPU6050 et Flutter.</em></p>
+  <p><em>Real-time intelligent postural assistance system based on ESP32, MPU6050 and Flutter.</em></p>
   
   ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
   ![ESP32](https://img.shields.io/badge/ESP32-E7352C?style=for-the-badge&logo=espressif&logoColor=white)
@@ -10,120 +10,120 @@
 
 ---
 
-## À propos du projet
+## About the Project
 
-**SpineGuard** est une solution complète IoT et logicielle conçue pour prévenir les problèmes de dos liés à une mauvaise posture. En combinant un capteur portable (ESP32 + MPU6050) et une application mobile intelligente (Flutter), le système surveille la courbure de la colonne vertébrale en temps réel, alerte l'utilisateur en cas de mauvaise posture prolongée, et propose un suivi personnalisé avec des exercices de rééducation et un assistant interactif.
+**SpineGuard** is a complete IoT and software solution designed to prevent back problems related to poor posture. By combining a wearable sensor (ESP32 + MPU6050) with a smart mobile application (Flutter), the system monitors spinal curvature in real time, alerts the user in case of prolonged poor posture, and offers personalized tracking with rehabilitation exercises and an interactive assistant.
 
-**Auteurs :** Ayari Wiem & Sakroufi Aya — 1ING03
+**Authors:** Ayari Wiem & Sakroufi Aya — 1ING03
 
 ---
 
-## Fonctionnalités Principales
+## Main Features
 
-### Application Mobile (Flutter)
-- **Dashboard Temps Réel** : Visualisation de l'angle du dos via un anneau postural dynamique et des statistiques en direct.
-- **Chatbot (SpineBot)** : Assistant intelligent propulsé par Groq API (LLaMA 3.1) pour répondre à toutes vos questions sur la santé du dos.
-- **Exercices Personnalisés** : 8 exercices de kinésithérapie avec animations interactives et chronomètre.
-- **Historique & Suivi** : Graphiques détaillés (pitch/roll) pour analyser l'évolution de la posture.
-- **Accessibilité** : Support multi-langues (FR/AR/EN), thèmes clair/sombre, et retour vocal (TTS).
+### Mobile Application (Flutter)
+- **Real-Time Dashboard**: Visualization of the back angle via a dynamic postural ring and live statistics.
+- **Chatbot (SpineBot)**: Smart assistant powered by the Groq API (LLaMA 3.1) to answer all your questions about back health.
+- **Personalized Exercises**: 8 physiotherapy exercises with interactive animations and a timer.
+- **History & Tracking**: Detailed charts (pitch/roll) to analyze posture evolution over time.
+- **Accessibility**: Multi-language support (FR/AR/EN), light/dark themes, and voice feedback (TTS).
 
 ### Hardware (ESP32)
-- **Filtrage Avancé** : Filtre complémentaire (α=0.1) assurant des mesures stables (~10ms).
-- **Alertes Intelligentes** : 4 niveaux de statut (GOOD, WARNING, BAD, CRITICAL) avec LED RGB et buzzer non-bloquant.
-- **Connectivité & API** : Serveur HTTP REST embarqué avec support CORS complet pour la communication avec l'application.
+- **Advanced Filtering**: Complementary filter (α=0.1) ensuring stable measurements (~10ms).
+- **Smart Alerts**: 4 status levels (GOOD, WARNING, BAD, CRITICAL) with RGB LED and non-blocking buzzer.
+- **Connectivity & API**: Embedded REST HTTP server with full CORS support for communication with the application.
 
-### Cloud & Automatisation
-- **n8n.io** : Workflows d'automatisation pour le traitement des données et l'envoi d'alertes par email.
-- **Supabase** : Base de données PostgreSQL robuste stockant l'historique des postures et les journaux d'alertes.
+### Cloud & Automation
+- **n8n.io**: Automation workflows for data processing and sending email alerts.
+- **Supabase**: Robust PostgreSQL database storing posture history and alert logs.
 
 ---
 
-## Architecture du Système
+## System Architecture
 
 ```mermaid
 graph TD;
-    A[Capteur MPU6050] -->|I2C| B(ESP32 DevKit V1);
-    B -->|WiFi / HTTP REST| C{Application Mobile Flutter};
+    A[MPU6050 Sensor] -->|I2C| B(ESP32 DevKit V1);
+    B -->|WiFi / HTTP REST| C{Flutter Mobile App};
     B -->|Webhook HTTP| D[n8n Cloud];
     D -->|PostgreSQL| E[(Supabase)];
-    D -->|SMTP| F[Alerte Email];
-    C -->|API Groq| G[LLaMA 3.1 AI];
+    D -->|SMTP| F[Email Alert];
+    C -->|Groq API| G[LLaMA 3.1 AI];
 ```
 
 ---
 
-## Matériel Requis
+## Required Hardware
 
-| Composant | Connexion / Pins |
+| Component | Connection / Pins |
 | :--- | :--- |
-| **ESP32 DevKit V1** | Alimentation USB |
-| **Capteur MPU6050** | `VCC`→3V3, `GND`→GND, `SDA`→GPIO21, `SCL`→GPIO22, `AD0`→GND |
-| **LED RGB (Anode Commune)**| `Anode`→3V3, `R`→GPIO12(220Ω), `G`→GPIO13(220Ω), `B`→GPIO14(220Ω) |
-| **Buzzer Actif 5V** | `+`→GPIO25, `−`→GND |
+| **ESP32 DevKit V1** | USB power |
+| **MPU6050 Sensor** | `VCC`→3V3, `GND`→GND, `SDA`→GPIO21, `SCL`→GPIO22, `AD0`→GND |
+| **RGB LED (Common Anode)**| `Anode`→3V3, `R`→GPIO12(220Ω), `G`→GPIO13(220Ω), `B`→GPIO14(220Ω) |
+| **5V Active Buzzer** | `+`→GPIO25, `−`→GND |
 
 ---
 
-## Guide d'Installation
+## Installation Guide
 
-### 1. Firmware ESP32
-1. Naviguez dans `arduino/SpineGuard_v4/`.
-2. Dupliquez `config.example.h` et renommez-le en `config.h`.
-3. Configurez vos identifiants WiFi :
+### 1. ESP32 Firmware
+1. Navigate to `arduino/SpineGuard_v4/`.
+2. Duplicate `config.example.h` and rename it to `config.h`.
+3. Configure your WiFi credentials:
    ```cpp
-   #define WIFI_SSID      "Votre_SSID"
-   #define WIFI_PASSWORD  "Votre_MotDePasse"
+   #define WIFI_SSID      "Your_SSID"
+   #define WIFI_PASSWORD  "Your_Password"
    ```
-4. Installez les bibliothèques requises dans l'Arduino IDE : **ArduinoJson**, **HTTPClient**.
-5. Téléversez le code sur l'ESP32 et notez l'adresse IP affichée dans le moniteur série (115200 baud).
+4. Install the required libraries in the Arduino IDE: **ArduinoJson**, **HTTPClient**.
+5. Upload the code to the ESP32 and note the IP address displayed in the serial monitor (115200 baud).
 
-### 2. Application Flutter
-**Option A : En local (Recommandé)**
+### 2. Flutter Application
+**Option A: Locally (Recommended)**
 ```bash
 cd flutter_app
 flutter pub get
 flutter run
 ```
-*Note : Allez dans les **Paramètres** de l'application pour saisir l'adresse IP de votre ESP32.*
+*Note: Go to the app's **Settings** to enter your ESP32's IP address.*
 
-**Option B : Via FlutLab.io**
-1. Créez un projet vierge sur FlutLab.
-2. Importez le contenu du dossier `flutter_app`.
-3. Exécutez `flutter pub get` puis lancez le build pour votre plateforme.
+**Option B: Via FlutLab.io**
+1. Create a blank project on FlutLab.
+2. Import the contents of the `flutter_app` folder.
+3. Run `flutter pub get` then start the build for your platform.
 
-### 3. Backend Cloud (n8n & Supabase)
-1. Créez une base de données sur Supabase en utilisant les scripts SQL fournis.
-2. Importez le workflow `n8n_spineguard_cloud.json` situé dans le dossier `n8n/` vers votre instance n8n.
-3. Configurez vos identifiants (Credentials) pour Supabase et SMTP (Gmail).
-4. Activez (Publish) le workflow.
+### 3. Cloud Backend (n8n & Supabase)
+1. Create a database on Supabase using the provided SQL scripts.
+2. Import the `n8n_spineguard_cloud.json` workflow located in the `n8n/` folder into your n8n instance.
+3. Configure your credentials for Supabase and SMTP (Gmail).
+4. Activate (Publish) the workflow.
 
 ---
 
-## API Locale de l'ESP32
+## ESP32 Local API
 
-L'ESP32 expose une API RESTful accessible sur le réseau local :
+The ESP32 exposes a RESTful API accessible on the local network:
 
-| Méthode | Endpoint | Description |
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/status` | Retourne l'état postural en temps réel (JSON). |
-| `POST`| `/api/calibrate` | Définit la position actuelle comme référence (zéro). |
-| `GET` | `/api/history` | Récupère les 10 dernières mesures enregistrées. |
-| `GET` | `/api/recommendations` | Fournit des conseils dynamiques selon l'état actuel. |
-| `POST`| `/api/settings` | Modifie la langue ou active/désactive le mode silencieux. |
+| `GET` | `/api/status` | Returns the real-time postural state (JSON). |
+| `POST`| `/api/calibrate` | Sets the current position as the reference (zero). |
+| `GET` | `/api/history` | Retrieves the last 10 recorded measurements. |
+| `GET` | `/api/recommendations` | Provides dynamic advice based on the current state. |
+| `POST`| `/api/settings` | Changes the language or enables/disables silent mode. |
 
 ---
 
-## Structure du Répertoire
+## Directory Structure
 
 ```text
 SpineGuardRepo/
-├── arduino/                 # Code source C++ pour l'ESP32
-├── flutter_app/             # Code source Dart/Flutter de l'application mobile
-├── n8n/                     # Fichiers JSON des workflows d'automatisation
-├── docs/                    # Documentation, schémas et captures d'écran
-└── README.md                # Ce fichier
+├── arduino/                 # C++ source code for the ESP32
+├── flutter_app/             # Dart/Flutter source code for the mobile application
+├── n8n/                     # JSON files for automation workflows
+├── docs/                    # Documentation, diagrams and screenshots
+└── README.md                # This file
 ```
 
 ---
 <div align="center">
-  <i>Développé avec passion pour l'amélioration de la santé posturale.</i>
+  <i>Developed with passion for improving postural health.</i>
 </div>
