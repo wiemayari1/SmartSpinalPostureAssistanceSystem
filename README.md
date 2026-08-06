@@ -14,7 +14,7 @@
 
 **SpineGuard** is a complete IoT and software solution designed to prevent back problems related to poor posture. By combining a wearable sensor (ESP32 + MPU6050) with a smart mobile application (Flutter), the system monitors spinal curvature in real time, alerts the user in case of prolonged poor posture, and offers personalized tracking with rehabilitation exercises and an interactive assistant.
 
-**Authors:** Ayari Wiem & Sakroufi Aya — 1ING03
+**Authors:** Ayari Wiem & Sakroufi Aya
 
 ---
 
@@ -122,8 +122,3 @@ SpineGuardRepo/
 ├── docs/                    # Documentation, diagrams and screenshots
 └── README.md                # This file
 ```
-
----
-<div align="center">
-  <i>Developed with passion for improving postural health.</i>
-</div>
